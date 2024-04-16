@@ -1,23 +1,18 @@
 module BrickMain where
 
-import Brick.Main (App(..), defaultMain, neverShowCursor, resizeOrQuit, findClickedExtents)
+import Brick.Main (App(..), defaultMain, neverShowCursor, resizeOrQuit)
 import Brick.Types (Widget, BrickEvent(..), EventM, get, put)
-import Brick.Widgets.Core (str, withAttr, clickable, (<+>), vBox, hBox)
-import Brick.Widgets.Center (center)
+import Brick.Widgets.Core (str, withAttr, (<+>), vBox)
 import Brick.Widgets.Table (table, renderTable)
-import Brick.Widgets.Border (border, hBorder, vBorder)
+import Brick.Widgets.Border (border)
 import Brick.AttrMap (AttrMap, attrMap, AttrName, attrName)
 import Brick.Util (fg)
 
 import qualified Graphics.Vty as V
-import Graphics.Vty.Input.Events (Button(..))
 
 import Data.Char (isDigit)
-import Data.List (intersperse, intercalate)
 
 import TicTacToe (Grid, Player(..), size, emptyGrid, next, isWinner, fullBoard, move)
-
-import qualified Debug.Trace as DT
 
 data InputMode = Typing | Arrowing
     deriving (Eq, Show)
@@ -31,6 +26,9 @@ data St = St
     , _playable :: Bool
     , _statusMessage :: String
     } deriving (Eq, Show)
+
+initialSt :: St
+initialSt = St emptyGrid O Typing "" 0 True ""
 
 oAttr :: AttrName
 oAttr = attrName "o"
@@ -134,6 +132,7 @@ checkBoard s
                                }
     | otherwise            = s
 
+arrowKeyToOffset :: V.Key -> Int
 arrowKeyToOffset V.KUp    = -size
 arrowKeyToOffset V.KRight = 1
 arrowKeyToOffset V.KDown  = size
@@ -157,14 +156,18 @@ handleEvent (VtyEvent (V.EvKey (V.KChar c) _))
     | isDigit c = do
         s <- get
         if _playable s
-        then put (s { _textCell = _textCell s ++ [c], _inputMode = Typing })
+        then put (s { _textCell = _textCell s ++ [c], 
+                      _inputMode = Typing 
+                    })
         else put s
-handleEvent (VtyEvent (V.EvKey key mods))
+handleEvent (VtyEvent (V.EvKey key _))
     | key `elem` [ V.KUp, V.KRight, V.KDown, V.KLeft ] = do
         s <- get
         let offset = arrowKeyToOffset key
         let newAC  = (_arrowCell s + offset) `mod` (size * size)
-        put $ s { _arrowCell = newAC, _inputMode = Arrowing }
+        put $ s { _arrowCell = newAC, 
+                  _inputMode = Arrowing 
+                }
     | otherwise = return ()
 handleEvent _ = return ()
 
@@ -179,6 +182,5 @@ app = App
 
 run :: IO ()
 run = do
-    let s = St emptyGrid O Typing "" 0 True ""
-    _ <- defaultMain app s
+    _ <- defaultMain app initialSt
     return ()
